@@ -12,60 +12,83 @@ class Window(QtWidgets.QWidget):
     class for main window
     """
 
-    def __init__(self, data, application=None):
+    def __init__(self, application):
         # super().__init__()
         super(Window, self).__init__()
 
         self.application = application
-        self._data = data
 
         # setting title
         self.setWindowTitle("OpenGL visualisation")
 
-        self.table_model = TableModel(self._data._data, self.application)
+        self.table_model = TableModel(self.application)
         self.view = View(self.table_model, self)
         self.view.setFixedWidth(500)
 
-        # creating a push buttons
-
+        # creating a push buttons :
         button_new = QPushButton("&New", self)
         # adding action to a button
-        button_new.clicked.connect(self._data.new)
+        button_new.clicked.connect(self.application.new_data)
 
         button_load = QPushButton("&Load", self)
         # adding action to a button
-        button_load.clicked.connect(self._data.load)
+        button_load.clicked.connect(self.application.load_data)
 
         button_save = QPushButton("&Save", self)
         # adding action to a button
-        button_save.clicked.connect(self._data.save)
+        button_save.clicked.connect(self.application.save_data)
 
         button_delete_line = QPushButton("&Delete current line", self)
         # adding action to a button
-        button_delete_line.clicked.connect(self._data.delete_line)
+        button_delete_line.clicked.connect(self.application.delete_line_in_data)
 
         button_add_line = QPushButton("&Add new line", self)
         # adding action to a button
-        button_add_line.clicked.connect(self._data.add_new_line)
+        button_add_line.clicked.connect(self.application.add_new_line_to_data)
 
-        #  switch between triangular and quadratic mesh
-        checkbox = QCheckBox("Use triangular mesh", self)
-        checkbox.stateChanged.connect(self.change_mesh_type)
-        checkbox.setChecked(False)
+        # create OpenGL Widget
+        self.glWidget = GLWidget(self.application.data)
 
-        # GL Widget
-        self.glWidget = GLWidget(self._data._data, self.application)
+        # make a switch between triangular and quadratic mesh
+        checkbox_triangular = QCheckBox("Use triangular mesh", self)
+        checkbox_triangular.stateChanged.connect(self.change_mesh_type)
+        checkbox_triangular.setChecked(False)
 
-        # sliders for rotations
+        # make a switch for visualisation of backsides
+        checkbox_backside = QCheckBox("Use back side view", self)
+        checkbox_backside.stateChanged.connect(self.glWidget.change_backside_view)
+        # checkbox_backside.setChecked(True)
+
+        # make a switch for alpha channel
+        checkbox_alpha = QCheckBox("Use alpha channel", self)
+        checkbox_alpha.stateChanged.connect(self.glWidget.change_alpha_view)
+        checkbox_alpha.setChecked(False)
+
+        # make a switch for face color smooth
+        checkbox_flatcolor = QCheckBox("Use flat face colors (disabling of color smooth)", self)
+        checkbox_flatcolor.stateChanged.connect(self.glWidget.change_flatcolor_view)
+        checkbox_flatcolor.setChecked(False)
+
+        # make sliders for rotations
         self.xSlider = self.createSlider(QtCore.SIGNAL("xRotationChanged(int)"),
                                          self.glWidget.setXRotation)
         self.ySlider = self.createSlider(QtCore.SIGNAL("yRotationChanged(int)"),
                                          self.glWidget.setYRotation)
         self.zSlider = self.createSlider(QtCore.SIGNAL("zRotationChanged(int)"),
                                          self.glWidget.setZRotation)
-        # slider for scale
+        # make a slider for scale
         self.sSlider = self.createSlider(QtCore.SIGNAL("scaleChanged(int)"),
                                          self.glWidget.setScale, stype='float')
+        # slider initial values
+        self.xSlider.setValue(1900)
+        self.ySlider.setValue(1600)
+        self.zSlider.setValue(900)
+        self.sSlider.setValue(20)
+        # slider tool tips
+        self.xSlider.setToolTip("x-Rotation")
+        self.ySlider.setToolTip("y-Rotation")
+        self.zSlider.setToolTip("y-Rotation")
+        self.sSlider.setToolTip("zoom")
 
         # Make layouts
         mainLayout = QtWidgets.QHBoxLayout()
@@ -73,7 +96,10 @@ class Window(QtWidgets.QWidget):
         mainLayout.addLayout(Layout1)
         Layout2 = QtWidgets.QHBoxLayout()
         Layout1.addWidget(self.view)
-        Layout1.addWidget(checkbox)
+        Layout1.addWidget(checkbox_triangular)
+        Layout1.addWidget(checkbox_backside)
+        Layout1.addWidget(checkbox_alpha)
+        Layout1.addWidget(checkbox_flatcolor)
         Layout1.addLayout(Layout2)
         Layout2.addWidget(button_new)
         Layout2.addWidget(button_load)
@@ -86,15 +112,6 @@ class Window(QtWidgets.QWidget):
         mainLayout.addWidget(self.zSlider)
         mainLayout.addWidget(self.sSlider)
         self.setLayout(mainLayout)
-
-        self.xSlider.setValue(190 * 16)
-        self.ySlider.setValue(160 * 16)
-        self.zSlider.setValue(90 * 16)
-        self.sSlider.setValue(20)
-        self.xSlider.setToolTip("x-Rotation")
-        self.ySlider.setToolTip("y-Rotation")
-        self.zSlider.setToolTip("y-Rotation")
-        self.sSlider.setToolTip("zoom")
 
     def createSlider(self, changedSignal, setterSlot, stype='degree'):
         slider = QtWidgets.QSlider(QtCore.Qt.Vertical)
@@ -120,17 +137,19 @@ class Window(QtWidgets.QWidget):
     # action methods
     def change_mesh_type(self, state):
         self.glWidget.change_mesh_type(state)
-        self.table_model.n_gons = self.glWidget.meshType
-        self.table_model.set_new_data(self._data._data)
+        self.application.n_angles = self.glWidget.meshType
+        self.table_model.set_new_data()
 
     # update methods
     def update_data(self, data):
         # update data (pandas dataframe) in table_model
-        self.table_model.set_new_data(data)
+        self.table_model.set_new_data()
+        # update OpenGL
         self.glWidget.set_new_data(data)
-        self.view.resizeColumnsToContents()
+        # update Table view
+        self.view.resizeRowsToContents()
         self.view.resizeColumnsToContents()
 
     def cell_updated(self, row, column):
         self.view.cell_updated(row, column)
-        self.update_data(self._data._data)
+        self.update_data(self.application.data)

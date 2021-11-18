@@ -2,12 +2,12 @@ from PySide2 import QtGui
 from PySide2 import QtCore
 from PySide2 import QtWidgets
 
-from TableModel.SETUP import COUNT_HEIGHT, MIN_WIDTH, PADDING, HEIGHT
+from V3.SETUP import COUNT_HEIGHT, MIN_WIDTH, PADDING, HEIGHT
 
 
 class Delegate(QtWidgets.QStyledItemDelegate):
     """
-    class for Table visualisation
+    class for delegate Table visualisation
     """
 
     def __init__(self, parent=None):
@@ -55,16 +55,19 @@ class Delegate(QtWidgets.QStyledItemDelegate):
             cell.print()
         )
 
+    # override method
     def sizeHint(self, option, index):
         cell = index.data(QtCore.Qt.UserRole)
         width = max(MIN_WIDTH, self.metrics.width(cell.text) + PADDING * 2)
         return QtCore.QSize(width, HEIGHT)
 
+    # override method
     def createEditor(self, parent, option, index):
         editor = QtWidgets.QLineEdit(parent)
-        # editor.setValidator(QtGui.QIntValidator())
         return editor
 
+    # override method
     def setEditorData(self, editor, index):
         value = index.model().data(index, QtCore.Qt.UserRole).text
         editor.setText(value)
+        # editor.resize(MIN_WIDTH, HEIGHT)

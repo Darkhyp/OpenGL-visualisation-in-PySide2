@@ -1,6 +1,6 @@
 from PySide2 import QtCore
 
-from TableModel.cell import Cell
+from V3.cell import Cell
 
 
 class TableModel(QtCore.QAbstractTableModel):
@@ -11,50 +11,48 @@ class TableModel(QtCore.QAbstractTableModel):
     column_count = None
     header_labels = []
 
-    def __init__(self, data, application=None, n_gons=4):
+    def __init__(self, application):
         QtCore.QAbstractTableModel.__init__(self, application)
 
         self.application = application
-        self._data = data
-        self.n_gons = n_gons
+
         self.init_data()
 
     def init_data(self):
-        self.row_count, self.column_count = self._data.shape
-        self.header_labels = self._data.columns
+        self.row_count, self.column_count, self.header_labels = self.application.model_info()
 
-    def set_new_data(self, data):
-        self.layoutAboutToBeChanged.emit()
-        self._data = data
-        self.init_data()
-        self.layoutChanged.emit()
-
-    def data(self, index, role):
-        if role == QtCore.Qt.UserRole:
-            return Cell(self._data.iloc[index.row(), index.column()], index.row(), index.column(), self.n_gons)
-
+    # override method
     def rowCount(self, index):
         return self.row_count
 
+    # override method
     def columnCount(self, index):
         return self.column_count
 
+    def set_new_data(self):
+        self.layoutAboutToBeChanged.emit()
+        self.init_data()
+        self.layoutChanged.emit()
+
+    # override method
+    def data(self, index, role):
+        if role == QtCore.Qt.UserRole:
+            row, column = index.row(), index.column()
+            return Cell(self.application.get_data(row, column), row, column, self.application.n_angles)
+
+    # override method
     def setData(self, index, value, role):
         if role == QtCore.Qt.EditRole:
             row, column = index.row(), index.column()
-            try:
-                self._data.iloc[row, column] = type(self._data.iloc[row, column])(value)
-                if self.application is not None:
-                    self.application.cell_updated(row, column)
-            except ValueError:
-                return False
-            return True
+            return self.application.set_data(row, column, value)
         return False
 
+    # override method
     def flags(self, index):
         return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsSelectable | QtCore.Qt.ItemIsEditable
         # return QtCore.Qt.ItemIsEnabled | QtCore.Qt.ItemIsEditable
 
+    # override method
     def headerData(self, section, orientation, role):
         if role == QtCore.Qt.DisplayRole and orientation == QtCore.Qt.Horizontal:
             return self.header_labels[section]
